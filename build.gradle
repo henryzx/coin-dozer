@@ -30,6 +30,7 @@ dependencies {
     compile 'htmlunit:htmlunit:1.14'
 
     compile 'org.apache.commons:commons-csv:1.5'
+    compile 'es.nitaur.markdown:txtmark:0.16'
 }
 
 compileKotlin {

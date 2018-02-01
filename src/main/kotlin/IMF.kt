@@ -1,9 +1,10 @@
+import com.github.rjeschke.txtmark.Processor
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
 import org.apache.commons.csv.QuoteMode
 import org.jsoup.Jsoup
-import java.io.File
-import java.io.FileWriter
+import java.io.*
+import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.CountDownLatch
@@ -89,17 +90,106 @@ class IMF {
 
         println("done with : " + items.joinToString { it.toString() })
 
-        // export
+        // export to csv
         run {
             val outputFile = File("""C:\Users\zheng\out.csv""")
-            val printer = CSVPrinter(FileWriter(outputFile), CSVFormat.EXCEL.withFirstRecordAsHeader().withQuoteMode(QuoteMode.ALL))
-            printer.printRecord("date", "title", "pdf", "abstract")
+            val printer = CSVPrinter(OutputStreamWriter(FileOutputStream(outputFile), Charsets.UTF_16), CSVFormat.EXCEL.withHeader("date", "title", "pdf", "abstract"))
             for (item in items) {
                 printer.printRecord(item.date, item.title, item.detail?.downloadUrl, item.detail?.abstract)
             }
             printer.close()
             println("wrote to file ${outputFile.path}")
         }
+
+
+        // export to md
+        run {
+            val templateHeader = """
+                IMF Summary on 2018
+                =================================
+
+                updated on: <update_date>
+
+            """.trimIndent()
+
+
+            val templateContent = """
+                [<title>](<url>)
+                -----------------------
+
+                **Publish Date:** <date>
+
+                ### Abstract
+
+                <abstract>
+
+                [Download PDF](<download_url>)
+
+
+            """.trimIndent()
+
+            val templateFooter = """
+
+                ----------------------
+
+                ~by zhengxiao~
+            """.trimIndent()
+
+            val outputFile = File("""C:\Users\zheng\out.md""")
+            val writer = FileWriter(outputFile)
+
+            writer.use {
+
+                val sdf = SimpleDateFormat("yyyy-MM-dd")
+                sdf.timeZone = TimeZone.getTimeZone("GMT+8")
+
+                it.apply {
+
+                    write(templateHeader.replace("<update_date>", sdf.format(Date())))
+                    write("\n")
+
+                    for (item in items) {
+                        write(templateContent
+                                .replace("<title>", item.title)
+                                .replace("<url>", item.url)
+                                .replace("<date>", sdf.format(item.date))
+                                .replace("<abstract>", item.detail?.abstract ?: "")
+                                .replace("<download_url>", item.detail?.downloadUrl ?: "")
+                        )
+                    }
+
+                    write(templateFooter)
+                }
+            }
+
+            FileWriter(File("""C:\Users\zheng\out.html""")).use {
+
+                val htmlHeader = """
+                    <html><head><meta charset="utf-8">
+                    <style type="text/css">
+                """.trimIndent()
+
+                val htmlHeaderAfterCss = """
+                    </style></head>
+                    <body>
+                """.trimIndent()
+
+                val htmlFooter = """
+                    </body></html>
+                """.trimIndent()
+                it.apply {
+                    write(htmlHeader)
+                    InputStreamReader(javaClass.getResourceAsStream("/markdown.css")).use {
+                        it.copyTo(this)
+                    }
+                    write(htmlHeaderAfterCss)
+                    write(Processor.process(outputFile))
+                    write(htmlFooter)
+                }
+            }
+
+        }
+        threadPool.shutdown()
     }
 
     data class Item(val title: String, val url: String, val date: Date, var detail: Detail? = null)
