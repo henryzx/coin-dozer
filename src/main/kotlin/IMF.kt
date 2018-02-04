@@ -1,10 +1,11 @@
 import com.github.rjeschke.txtmark.Processor
+import io.reactivex.Flowable
+import io.reactivex.Observable
+import io.reactivex.schedulers.Schedulers
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
-import org.apache.commons.csv.QuoteMode
 import org.jsoup.Jsoup
 import java.io.*
-import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.CountDownLatch
@@ -72,6 +73,16 @@ class IMF {
             }
         }
 
+        val item = Flowable.fromIterable(items).observeOn(Schedulers.io()).flatMap { Flowable.fromCallable {
+            val doc = Jsoup.connect(it.url).get()
+            val detail = Detail(
+                    abstract = doc.selectFirst("p.pub-label:contains(Summary)").nextElementSibling().text(),
+                    downloadUrl = doc.selectFirst("a:contains(Free Full Text)").absUrl("href")
+            )
+            it.detail = detail
+            it
+        }.retry(1) }.toSortedList().blockingGet()
+
         val threadPool = Executors.newCachedThreadPool()
         val latch = CountDownLatch(items.size)
         for (item in items) {
@@ -132,7 +143,7 @@ class IMF {
 
                 ----------------------
 
-                ~by zhengxiao~
+                ~by xueying ❤ zhengxiao~
             """.trimIndent()
 
             val outputFile = File("""C:\Users\zheng\out.md""")
@@ -192,6 +203,11 @@ class IMF {
         threadPool.shutdown()
     }
 
-    data class Item(val title: String, val url: String, val date: Date, var detail: Detail? = null)
+    data class Item(val title: String, val url: String, val date: Date, var detail: Detail? = null): Comparable<Item>{
+        override fun compareTo(other: Item): Int {
+            return date.compareTo(other.date)
+        }
+
+    }
     data class Detail(val abstract: String, val downloadUrl: String)
 }
