@@ -36,11 +36,13 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.2.21" level="project" />
     <orderEntry type="library" name="Gradle: org.jsoup:jsoup:1.11.2" level="project" />
+    <orderEntry type="library" name="Gradle: rome:rome:1.0" level="project" />
     <orderEntry type="library" name="Gradle: io.reactivex.rxjava2:rxjava:2.1.9" level="project" />
     <orderEntry type="library" name="Gradle: org.apache.commons:commons-csv:1.5" level="project" />
     <orderEntry type="library" name="Gradle: es.nitaur.markdown:txtmark:0.16" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.2.21" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.2.21" level="project" />
+    <orderEntry type="library" name="Gradle: jdom:jdom:1.0" level="project" />
     <orderEntry type="library" name="Gradle: org.reactivestreams:reactive-streams:1.0.2" level="project" />
     <orderEntry type="library" name="Gradle: org.jetbrains:annotations:13.0" level="project" />
   </component>

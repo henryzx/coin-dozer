@@ -1,20 +1,11 @@
-import com.github.rjeschke.txtmark.Processor
-import io.reactivex.Flowable
-import io.reactivex.Observable
-import io.reactivex.schedulers.Schedulers
-import org.apache.commons.csv.CSVFormat
-import org.apache.commons.csv.CSVPrinter
+import models.Detail
+import models.Item
 import org.jsoup.Jsoup
-import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.regex.Pattern
-
-fun main(args: Array<String>) {
-    IMF().run()
-}
 
 /**
  * # TODO
@@ -37,7 +28,9 @@ class IMF {
 
     fun run() {
 
+        val exporter = MarkdownExporter()
 
+        println("fetch start")
         // 按页抓取方案
         val items = ArrayList<Item>()
         run {
@@ -73,16 +66,6 @@ class IMF {
             }
         }
 
-        val item = Flowable.fromIterable(items).observeOn(Schedulers.io()).flatMap { Flowable.fromCallable {
-            val doc = Jsoup.connect(it.url).get()
-            val detail = Detail(
-                    abstract = doc.selectFirst("p.pub-label:contains(Summary)").nextElementSibling().text(),
-                    downloadUrl = doc.selectFirst("a:contains(Free Full Text)").absUrl("href")
-            )
-            it.detail = detail
-            it
-        }.retry(1) }.toSortedList().blockingGet()
-
         val threadPool = Executors.newCachedThreadPool()
         val latch = CountDownLatch(items.size)
         for (item in items) {
@@ -99,115 +82,12 @@ class IMF {
 
         latch.await()
 
-        println("done with : " + items.joinToString { it.toString() })
+        println("fetch done with : " + items.joinToString { it.toString() })
 
-        // export to csv
-        run {
-            val outputFile = File("""C:\Users\zheng\out.csv""")
-            val printer = CSVPrinter(OutputStreamWriter(FileOutputStream(outputFile), Charsets.UTF_16), CSVFormat.EXCEL.withHeader("date", "title", "pdf", "abstract"))
-            for (item in items) {
-                printer.printRecord(item.date, item.title, item.detail?.downloadUrl, item.detail?.abstract)
-            }
-            printer.close()
-            println("wrote to file ${outputFile.path}")
-        }
+        // export
+        exporter.export(items)
 
-
-        // export to md
-        run {
-            val templateHeader = """
-                IMF Summary on 2018
-                =================================
-
-                updated on: <update_date>
-
-            """.trimIndent()
-
-
-            val templateContent = """
-                [<title>](<url>)
-                -----------------------
-
-                **Publish Date:** <date>
-
-                ### Abstract
-
-                <abstract>
-
-                [Download PDF](<download_url>)
-
-
-            """.trimIndent()
-
-            val templateFooter = """
-
-                ----------------------
-
-                ~by xueying ❤ zhengxiao~
-            """.trimIndent()
-
-            val outputFile = File("""C:\Users\zheng\out.md""")
-            val writer = FileWriter(outputFile)
-
-            writer.use {
-
-                val sdf = SimpleDateFormat("yyyy-MM-dd")
-                sdf.timeZone = TimeZone.getTimeZone("GMT+8")
-
-                it.apply {
-
-                    write(templateHeader.replace("<update_date>", sdf.format(Date())))
-                    write("\n")
-
-                    for (item in items) {
-                        write(templateContent
-                                .replace("<title>", item.title)
-                                .replace("<url>", item.url)
-                                .replace("<date>", sdf.format(item.date))
-                                .replace("<abstract>", item.detail?.abstract ?: "")
-                                .replace("<download_url>", item.detail?.downloadUrl ?: "")
-                        )
-                    }
-
-                    write(templateFooter)
-                }
-            }
-
-            FileWriter(File("""C:\Users\zheng\out.html""")).use {
-
-                val htmlHeader = """
-                    <html><head><meta charset="utf-8">
-                    <style type="text/css">
-                """.trimIndent()
-
-                val htmlHeaderAfterCss = """
-                    </style></head>
-                    <body>
-                """.trimIndent()
-
-                val htmlFooter = """
-                    </body></html>
-                """.trimIndent()
-                it.apply {
-                    write(htmlHeader)
-                    InputStreamReader(javaClass.getResourceAsStream("/markdown.css")).use {
-                        it.copyTo(this)
-                    }
-                    write(htmlHeaderAfterCss)
-                    write(Processor.process(outputFile))
-                    write(htmlFooter)
-                }
-            }
-
-        }
         threadPool.shutdown()
     }
 
-    data class Item(val title: String, val url: String, val date: Date, var detail: Detail? = null): Comparable<Item>{
-        override fun compareTo(other: Item): Int {
-            return date.compareTo(other.date)
-        }
-
-    }
-    data class Detail(val abstract: String, val downloadUrl: String)
 }
