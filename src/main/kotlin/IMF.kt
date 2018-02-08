@@ -24,7 +24,9 @@ import java.util.regex.Pattern
  * 详情使用 Jsoap 解析并且入库
  *
  */
-
+fun main(args: Array<String>) {
+    imf()
+}
 fun imf() {
 
     val exporter = MarkdownExporter(title = "IMF Summary on 2018")
