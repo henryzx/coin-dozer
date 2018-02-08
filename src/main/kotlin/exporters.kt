@@ -7,18 +7,19 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 interface Exporter {
-    fun export(items: ArrayList<Item>)
+    fun export(items: List<Item>)
 }
 
 class MarkdownExporter(
         private val outputFilePath: String = """C:\Users\zheng\out.html""",
-        private val outputFilePathMarkdown: String = """C:\Users\zheng\out.md"""
+        private val outputFilePathMarkdown: String = """C:\Users\zheng\out.md""",
+        private val title: String
 ) : Exporter {
 
 
-    override fun export(items: ArrayList<Item>) {
+    override fun export(items: List<Item>) {
         val templateHeader = """
-                    IMF Summary on 2018
+                    $title
                     =================================
 
                     updated on: <update_date>
@@ -107,7 +108,7 @@ class MarkdownExporter(
 
 class CSVExporter(private val outputFilePath: String = """C:\Users\zheng\out.csv""") : Exporter {
 
-    override fun export(items: ArrayList<Item>) {
+    override fun export(items: List<Item>) {
         val outputFile = File(outputFilePath)
         val printer = CSVPrinter(OutputStreamWriter(FileOutputStream(outputFile), Charsets.UTF_16), CSVFormat.EXCEL.withHeader("date", "title", "pdf", "abstract"))
         for (item in items) {

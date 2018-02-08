@@ -24,70 +24,67 @@ import java.util.regex.Pattern
  * 详情使用 Jsoap 解析并且入库
  *
  */
-class IMF {
 
-    fun run() {
+fun imf() {
 
-        val exporter = MarkdownExporter()
+    val exporter = MarkdownExporter(title = "IMF Summary on 2018")
 
-        println("fetch start")
-        // 按页抓取方案
-        val items = ArrayList<Item>()
-        run {
-            val pageLimit = 500 // for safe
-            val pagePattern = Pattern.compile("""Page:.*(\d+).*of.*(\d+)""", Pattern.MULTILINE)
-            val dateFormat = SimpleDateFormat("MMMM dd yyyy", Locale.US)
+    println("fetch start")
+    // 按页抓取方案
+    val items = ArrayList<Item>()
+    run {
+        val pageLimit = 500 // for safe
+        val pagePattern = Pattern.compile("""Page:.*(\d+).*of.*(\d+)""", Pattern.MULTILINE)
+        val dateFormat = SimpleDateFormat("MMMM dd yyyy", Locale.US)
 
-            for (page in 1..pageLimit) {
+        for (page in 1..pageLimit) {
 
-                val doc = Jsoup.connect("http://www.imf.org/en/Publications/Search?series=IMF%20Working%20Papers&when=During&year=2018&page=$page").get()
-                val rows = doc.select("div.result-row.pub-row")
+            val doc = Jsoup.connect("http://www.imf.org/en/Publications/Search?series=IMF%20Working%20Papers&when=During&year=2018&page=$page").get()
+            val rows = doc.select("div.result-row.pub-row")
 
-                val matcher = pagePattern.matcher(doc.selectFirst("p.pages").text())
-                if (!matcher.matches()) throw IllegalStateException("can't find page")
-                val curPage = matcher.group(1).toInt()
-                val totalPage = matcher.group(2).toInt()
+            val matcher = pagePattern.matcher(doc.selectFirst("p.pages").text())
+            if (!matcher.matches()) throw IllegalStateException("can't find page")
+            val curPage = matcher.group(1).toInt()
+            val totalPage = matcher.group(2).toInt()
 
-                if (curPage != page) break // page don't match
-                if (page > totalPage) break // exceeded the end of page
+            if (curPage != page) break // page don't match
+            if (page > totalPage) break // exceeded the end of page
 
-                for (row in rows) {
-                    // parse row
+            for (row in rows) {
+                // parse row
 
-                    val item = Item(
-                            title = row.select("a")[0].text(),
-                            url = row.select("a")[0].absUrl("href"),
-                            date = dateFormat.parse(row.select("p:last-child")[0].text().substring("Date: ".length).replace(",", ""))
-                    )
-                    println(item)
-                    items.add(item)
-                }
-
-            }
-        }
-
-        val threadPool = Executors.newCachedThreadPool()
-        val latch = CountDownLatch(items.size)
-        for (item in items) {
-            threadPool.submit {
-                val doc = Jsoup.connect(item.url).get()
-                val detail = Detail(
-                        abstract = doc.selectFirst("p.pub-label:contains(Summary)").nextElementSibling().text(),
-                        downloadUrl = doc.selectFirst("a:contains(Free Full Text)").absUrl("href")
+                val item = Item(
+                        title = row.select("a")[0].text(),
+                        url = row.select("a")[0].absUrl("href"),
+                        date = dateFormat.parse(row.select("p:last-child")[0].text().substring("Date: ".length).replace(",", ""))
                 )
-                item.detail = detail
-                latch.countDown()
+                println(item)
+                items.add(item)
             }
+
         }
-
-        latch.await()
-
-        println("fetch done with : " + items.joinToString { it.toString() })
-
-        // export
-        exporter.export(items)
-
-        threadPool.shutdown()
     }
 
+    val threadPool = Executors.newCachedThreadPool()
+    val latch = CountDownLatch(items.size)
+    for (item in items) {
+        threadPool.submit {
+            val doc = Jsoup.connect(item.url).get()
+            val detail = Detail(
+                    abstract = doc.selectFirst("p.pub-label:contains(Summary)").nextElementSibling().text(),
+                    downloadUrl = doc.selectFirst("a:contains(Free Full Text)").absUrl("href")
+            )
+            item.detail = detail
+            latch.countDown()
+        }
+    }
+
+    latch.await()
+
+    println("fetch done with : " + items.joinToString { it.toString() })
+
+    // export
+    exporter.export(items)
+
+    threadPool.shutdown()
 }
