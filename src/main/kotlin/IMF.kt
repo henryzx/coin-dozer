@@ -27,6 +27,7 @@ import java.util.regex.Pattern
 fun main(args: Array<String>) {
     imf()
 }
+
 fun imf() {
 
     val exporter = MarkdownExporter(title = "IMF Summary on 2018")
@@ -58,7 +59,15 @@ fun imf() {
                 val item = Item(
                         title = row.select("a")[0].text(),
                         url = row.select("a")[0].absUrl("href"),
-                        date = dateFormat.parse(row.select("p:last-child")[0].text().substring("Date: ".length).replace(",", ""))
+                        date = run {
+                            val date = row.selectFirst("p:contains(Date:)").text().substring("Date: ".length).replace(",", "")
+                            return@run try {
+                                dateFormat.parse(date)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                Date()
+                            }
+                        }
                 )
                 println(item)
                 items.add(item)
